@@ -1,0 +1,16 @@
+
+# data
+*/data/
+
+*/__pycache__/
+
+#git
+*.orig
+*_REMOTE_*
+*_LOCAL_*
+*_BACKUP_*
+*_BASE_*
+
+#IPYNB
+*/.ipynb_checkpoints/
+
