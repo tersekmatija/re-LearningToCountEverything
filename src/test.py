@@ -33,6 +33,7 @@ parser.add_argument("-lr", "--learning_rate", type=float,default=1e-7, help="lea
 parser.add_argument("-wm", "--weight_mincount", type=float,default=1e-9, help="weight multiplier for Mincount Loss")
 parser.add_argument("-wp", "--weight_perturbation", type=float,default=1e-4, help="weight multiplier for Perturbation Loss")
 parser.add_argument("-g",  "--gpu-id", type=int, default=0, help="GPU id. Default 0 for the first GPU. Use -1 for CPU.")
+parser.add_argument("-sp", "--sigma_perturbation", type=float,default=8, help="sigma for Perturbation Loss")
 args = parser.parse_args()
 
 data_path = args.data_path
@@ -74,6 +75,8 @@ cnt = 0
 SAE = 0  # sum of absolute errors
 SSE = 0  # sum of square errors
 
+relative_errors = dict()
+
 print("Evaluation on {} data".format(args.test_split))
 im_ids = data_split[args.test_split]
 pbar = tqdm(im_ids)
@@ -111,7 +114,7 @@ for im_id in pbar:
             optimizer.zero_grad()
             output = adapted_regressor(features)
             lCount = args.weight_mincount * MincountLoss(output, boxes)
-            lPerturbation = args.weight_perturbation * PerturbationLoss(output, boxes, sigma=8)
+            lPerturbation = args.weight_perturbation * PerturbationLoss(output, boxes, sigma=args.sigma_perturbation)
             Loss = lCount + lPerturbation
             # loss can become zero in some cases, where loss is a 0 valued scalar and not a tensor
             # So Perform gradient descent only for non zero cases
@@ -131,5 +134,15 @@ for im_id in pbar:
     pbar.set_description('{:<8}: actual-predicted: {:6d}, {:6.1f}, error: {:6.1f}. Current MAE: {:5.2f}, RMSE: {:5.2f}'.\
                          format(im_id, gt_cnt, pred_cnt, abs(pred_cnt - gt_cnt), SAE/cnt, (SSE/cnt)**0.5))
     print("")
+    relative_errors[im_id] = abs(pred_cnt - gt_cnt) / gt_cnt
+    
 
 print('On {} data, MAE: {:6.2f}, RMSE: {:6.2f}'.format(args.test_split, SAE/cnt, (SSE/cnt)**0.5))
+
+relative_errors = {k: v for k, v in sorted(relative_errors.items(), key=lambda item: item[1])}
+
+print('10 images with lowest relative absolute error')
+print(list(relative_errors.items())[:10])
+
+print('10 images with highest relative absolute error')
+print(list(relative_errors.items())[(len(relative_errors)-10):])

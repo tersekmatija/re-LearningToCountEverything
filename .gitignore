@@ -1,5 +1,6 @@
 
 # data
+src/notebooks/visualizations
 */data/
 
 */__pycache__/
@@ -12,5 +13,5 @@
 *_BASE_*
 
 #IPYNB
-*/.ipynb_checkpoints/
+src/notebooks/.ipynb_checkpoints/*
 
