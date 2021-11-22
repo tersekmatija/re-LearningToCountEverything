@@ -77,3 +77,8 @@ If you find the code useful, please cite:
 ```
 
 
+
+## Changelog for Reproducibility challenge
+
+* Add `sigma_perturbation`argument to test different sigmas in test.
+* Relative error in test
