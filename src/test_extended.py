@@ -34,12 +34,19 @@ parser.add_argument("-wm", "--weight_mincount", type=float,default=1e-9, help="w
 parser.add_argument("-wp", "--weight_perturbation", type=float,default=1e-4, help="weight multiplier for Perturbation Loss")
 parser.add_argument("-g",  "--gpu-id", type=int, default=0, help="GPU id. Default 0 for the first GPU. Use -1 for CPU.")
 parser.add_argument("-sp", "--sigma_perturbation", type=float,default=8, help="sigma for Perturbation Loss")
+
+"""
+Arguments added for reproducibility challenge
+"""
+parser.add_argument("-o", "--output_file", type=str,default='./data/test_reproduced/test_val.txt', help="file in which test losses are written")
+parser.add_argument("-al",  "--absolute_loss", action='store_true', help="If specified, L1-loss is used in MinCountLoss instead of MSE")
 args = parser.parse_args()
 
 data_path = args.data_path
 anno_file = data_path + 'annotation_FSC147_384.json'
 data_split_file = data_path + 'Train_Test_Val_FSC_147.json'
 im_dir = data_path + 'images_384_VarV2'
+output_file = args.output_file
 
 if not exists(anno_file) or not exists(im_dir):
     print("Make sure you set up the --data-path correctly.")
@@ -113,7 +120,7 @@ for im_id in pbar:
         for step in range(0, args.gradient_steps):
             optimizer.zero_grad()
             output = adapted_regressor(features)
-            lCount = args.weight_mincount * MincountLoss(output, boxes)
+            lCount = args.weight_mincount * MincountLoss(output, boxes, l1_loss=args.absolute_loss)
             lPerturbation = args.weight_perturbation * PerturbationLoss(output, boxes, sigma=args.sigma_perturbation)
             Loss = lCount + lPerturbation
             # loss can become zero in some cases, where loss is a 0 valued scalar and not a tensor
@@ -147,10 +154,12 @@ print(list(relative_errors.items())[:10])
 print('10 images with highest relative absolute error')
 print(list(relative_errors.items())[(len(relative_errors)-10):])
 
-print("---MAE---")
-print(np.mean(SAE))
-print(np.std(SAE))
-
-print("---RMSE---")
-print(np.sqrt(np.mean(SSE)))
-print(np.sqrt(np.std(SSE)))
+with open(output_file, "w") as f:
+    f.write("---MAE---\n")
+    f.write(f"Mean: {np.mean(SAE)}\n")
+    f.write(f"SD: {np.std(SAE)}\n")
+    
+    f.write("---RMSE---\n")
+    f.write(f"Mean: {np.sqrt(np.mean(SSE))}\n")
+    #f.write(f"SD: {np.std(SSE)}\n")
+    

@@ -82,8 +82,12 @@ def PerturbationLoss(output,boxes,sigma=8, use_gpu=True):
         Loss += F.mse_loss(out.squeeze(),GaussKernel) 
     return Loss
 
+"""
+REPRODUCIBILITY CHALLENGE:
 
-def MincountLoss(output,boxes, use_gpu=True):
+Added l1_loss, which authors 'use' in paper, but in code they use l2_loss (squared error) instead
+"""
+def MincountLoss(output,boxes, l1_loss=False, use_gpu=True):
     ones = torch.ones(1)
     if use_gpu: ones = ones.cuda()
     Loss = 0.
@@ -96,7 +100,10 @@ def MincountLoss(output,boxes, use_gpu=True):
             x2 = int(tempBoxes[4])
             X = output[:,:,y1:y2,x1:x2].sum()
             if X.item() <= 1:
-                Loss += F.mse_loss(X,ones)
+                if l1_loss:
+                    Loss += F.l1_loss(X,ones)
+                else:
+                    Loss += F.mse_loss(X,ones)
     else:
         boxes = boxes.squeeze()
         y1 = int(boxes[1])
@@ -105,7 +112,10 @@ def MincountLoss(output,boxes, use_gpu=True):
         x2 = int(boxes[4])
         X = output[:,:,y1:y2,x1:x2].sum()
         if X.item() <= 1:
-            Loss += F.mse_loss(X,ones)  
+            if l1_loss:
+                Loss += F.l1_loss(X,ones)
+            else:
+                Loss += F.mse_loss(X,ones)  
     return Loss
 
 
