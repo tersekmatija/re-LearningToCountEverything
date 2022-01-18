@@ -2,6 +2,8 @@
 # data
 src/notebooks/visualizations
 */data/
+!src/data/
+src/data/*
 !src/data/test_reproduced/
 
 */__pycache__/
