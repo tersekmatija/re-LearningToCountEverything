@@ -2,7 +2,7 @@
 # data
 src/notebooks/visualizations
 */data/
-!/data/test_reproduced/
+!src/data/test_reproduced/
 
 */__pycache__/
 
