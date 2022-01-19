@@ -40,6 +40,8 @@ Arguments added for reproducibility challenge
 """
 parser.add_argument("-o", "--output_file", type=str,default='./data/test_reproduced/test_val.txt', help="file in which test losses are written")
 parser.add_argument("-al",  "--absolute_loss", action='store_true', help="If specified, L1-loss is used in MinCountLoss instead of MSE")
+parser.add_argument("-ne",  "--n_exemplars", type=int, default=-1, help="Maximum number of exemplars used in testing. Value -1 means that the number is not limited.")
+
 args = parser.parse_args()
 
 data_path = args.data_path
@@ -81,6 +83,7 @@ with open(data_split_file) as f:
 cnt = 0
 SAE = []  # sum of absolute errors
 SSE = [] # sum of square errors
+n_exemplars = args.n_exemplars
 
 relative_errors = dict()
 
@@ -91,6 +94,10 @@ for im_id in pbar:
     anno = annotations[im_id]
     bboxes = anno['box_examples_coordinates']
     dots = np.array(anno['points'])
+
+    # Limit the number of exemplars if required
+    if n_exemplars != -1 and n_exemplars < len(bboxes):
+        bboxes = bboxes[:n_exemplars]
 
     rects = list()
     for bbox in bboxes:
