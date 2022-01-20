@@ -41,13 +41,19 @@ Arguments added for reproducibility challenge
 parser.add_argument("-o", "--output_file", type=str,default='./data/test_reproduced/test_val.txt', help="file in which test losses are written")
 parser.add_argument("-al",  "--absolute_loss", action='store_true', help="If specified, L1-loss is used in MinCountLoss instead of MSE")
 parser.add_argument("-ne",  "--n_exemplars", type=int, default=-1, help="Maximum number of exemplars used in testing. Value -1 means that the number is not limited.")
+parser.add_argument("-c",  "--carpk", action='store_true', help="If specified, evaluate on CarPK test set")
 
 args = parser.parse_args()
 
 data_path = args.data_path
-anno_file = data_path + 'annotation_FSC147_384.json'
-data_split_file = data_path + 'Train_Test_Val_FSC_147.json'
-im_dir = data_path + 'images_384_VarV2'
+if args.carpk:
+    anno_file = data_path + 'annotations.json'
+    data_split_file = data_path + 'train_test.json'
+    im_dir = data_path + 'Resized_images'
+else:
+    anno_file = data_path + 'annotation_FSC147_384.json'
+    data_split_file = data_path + 'Train_Test_Val_FSC_147.json'
+    im_dir = data_path + 'images_384_VarV2'
 output_file = args.output_file
 
 if not exists(anno_file) or not exists(im_dir):
