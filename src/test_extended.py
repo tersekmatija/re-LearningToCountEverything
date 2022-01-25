@@ -42,12 +42,17 @@ parser.add_argument("-o", "--output_file", type=str,default='./data/test_reprodu
 parser.add_argument("-al",  "--absolute_loss", action='store_true', help="If specified, L1-loss is used in MinCountLoss instead of MSE")
 parser.add_argument("-ne",  "--n_exemplars", type=int, default=-1, help="Maximum number of exemplars used in testing. Value -1 means that the number is not limited.")
 parser.add_argument("-c",  "--carpk", action='store_true', help="If specified, evaluate on CarPK test set")
+parser.add_argument("-cc",  "--crowd", action='store_true', help="If specified, evaluate on JHU-CROWD++ test set")
 
 args = parser.parse_args()
 
 data_path = args.data_path
 if args.carpk:
     anno_file = data_path + 'annotations.json'
+    data_split_file = data_path + 'train_test.json'
+    im_dir = data_path + 'Resized_images'
+elif args.crowd:
+    anno_file = data_path + 'annotations_test.json'
     data_split_file = data_path + 'train_test.json'
     im_dir = data_path + 'Resized_images'
 else:
@@ -87,6 +92,7 @@ with open(data_split_file) as f:
 
 
 cnt = 0
+fails = []
 SAE = []  # sum of absolute errors
 SSE = [] # sum of square errors
 n_exemplars = args.n_exemplars
@@ -97,64 +103,70 @@ print("Evaluation on {} data".format(args.test_split))
 im_ids = data_split[args.test_split]
 pbar = tqdm(im_ids)
 for im_id in pbar:
-    anno = annotations[im_id]
-    bboxes = anno['box_examples_coordinates']
-    dots = np.array(anno['points'])
+    try:
+        anno = annotations[im_id]
+        bboxes = anno['box_examples_coordinates']
+        dots = np.array(anno['points'])
 
-    # Limit the number of exemplars if required
-    if n_exemplars != -1 and n_exemplars < len(bboxes):
-        bboxes = bboxes[:n_exemplars]
+        # Limit the number of exemplars if required
+        if n_exemplars != -1 and n_exemplars < len(bboxes):
+            bboxes = bboxes[:n_exemplars]
 
-    rects = list()
-    for bbox in bboxes:
-        x1, y1 = bbox[0][0], bbox[0][1]
-        x2, y2 = bbox[2][0], bbox[2][1]
-        rects.append([y1, x1, y2, x2])
+        rects = list()
+        for bbox in bboxes:
+            x1, y1 = bbox[0][0], bbox[0][1]
+            x2, y2 = bbox[2][0], bbox[2][1]
+            rects.append([y1, x1, y2, x2])
 
-    image = Image.open('{}/{}'.format(im_dir, im_id))
-    image.load()
-    sample = {'image': image, 'lines_boxes': rects}
-    sample = Transform(sample)
-    image, boxes = sample['image'], sample['boxes']
+        image = Image.open('{}/{}'.format(im_dir, im_id))
+        image.load()
+        sample = {'image': image, 'lines_boxes': rects}
+        sample = Transform(sample)
+        image, boxes = sample['image'], sample['boxes']
 
-    if use_gpu:
-        image = image.cuda()
-        boxes = boxes.cuda()
+        if use_gpu:
+            image = image.cuda()
+            boxes = boxes.cuda()
 
-    with torch.no_grad(): features = extract_features(resnet50_conv, image.unsqueeze(0), boxes.unsqueeze(0), MAPS, Scales)
+        with torch.no_grad(): features = extract_features(resnet50_conv, image.unsqueeze(0), boxes.unsqueeze(0), MAPS, Scales)
 
-    if not args.adapt:
-        with torch.no_grad(): output = regressor(features)
-    else:
-        features.required_grad = True
-        adapted_regressor = copy.deepcopy(regressor)
-        adapted_regressor.train()
-        optimizer = optim.Adam(adapted_regressor.parameters(), lr=args.learning_rate)
-        for step in range(0, args.gradient_steps):
-            optimizer.zero_grad()
+        if not args.adapt:
+            with torch.no_grad(): output = regressor(features)
+        else:
+            features.required_grad = True
+            adapted_regressor = copy.deepcopy(regressor)
+            adapted_regressor.train()
+            optimizer = optim.Adam(adapted_regressor.parameters(), lr=args.learning_rate)
+            for step in range(0, args.gradient_steps):
+                optimizer.zero_grad()
+                output = adapted_regressor(features)
+                lCount = args.weight_mincount * MincountLoss(output, boxes, l1_loss=args.absolute_loss)
+            
+                lPerturbation = args.weight_perturbation * PerturbationLoss(output, boxes, sigma=args.sigma_perturbation)
+                Loss = lCount + lPerturbation
+                # loss can become zero in some cases, where loss is a 0 valued scalar and not a tensor
+                # So Perform gradient descent only for non zero cases
+                if torch.is_tensor(Loss):
+                    Loss.backward()
+                    optimizer.step()
+            
+            features.required_grad = False
             output = adapted_regressor(features)
-            lCount = args.weight_mincount * MincountLoss(output, boxes, l1_loss=args.absolute_loss)
-            lPerturbation = args.weight_perturbation * PerturbationLoss(output, boxes, sigma=args.sigma_perturbation)
-            Loss = lCount + lPerturbation
-            # loss can become zero in some cases, where loss is a 0 valued scalar and not a tensor
-            # So Perform gradient descent only for non zero cases
-            if torch.is_tensor(Loss):
-                Loss.backward()
-                optimizer.step()
-        features.required_grad = False
-        output = adapted_regressor(features)
 
-    gt_cnt = dots.shape[0]
-    pred_cnt = output.sum().item()
-    cnt = cnt + 1
-    err = abs(gt_cnt - pred_cnt)
-    SAE.append(err)
-    SSE.append(err**2)
+        gt_cnt = dots.shape[0]
+        pred_cnt = output.sum().item()
+        cnt = cnt + 1
+        err = abs(gt_cnt - pred_cnt)
+        SAE.append(err)
+        SSE.append(err**2)
 
-    pbar.set_description('{:<8}: actual-predicted: {:6d}, {:6.1f}, error: {:6.1f}. Current MAE: {:5.2f}, RMSE: {:5.2f}'.\
-                         format(im_id, gt_cnt, pred_cnt, abs(pred_cnt - gt_cnt), np.mean(SAE), np.sqrt(np.mean(SSE))))
-    print("")
-    relative_errors[im_id] = abs(pred_cnt - gt_cnt) / gt_cnt
+        pbar.set_description('{:<8}: actual-predicted: {:6d}, {:6.1f}, error: {:6.1f}. Current MAE: {:5.2f}, RMSE: {:5.2f}'.\
+                            format(im_id, gt_cnt, pred_cnt, abs(pred_cnt - gt_cnt), np.mean(SAE), np.sqrt(np.mean(SSE))))
+        print("")
+        relative_errors[im_id] = abs(pred_cnt - gt_cnt) / gt_cnt
+    
+    except:
+        fails.append(im_id)
     
 
 print('On {} data, MAE: {:6.2f}, RMSE: {:6.2f}'.format(args.test_split, np.mean(SAE), np.sqrt(np.mean(SSE))))
@@ -166,6 +178,10 @@ print(list(relative_errors.items())[:10])
 
 print('10 images with highest relative absolute error')
 print(list(relative_errors.items())[(len(relative_errors)-10):])
+
+print('Num fails:')
+print(len(fails))
+print(fails)
 
 with open(output_file, "w") as f:
     f.write("---MAE---\n")
