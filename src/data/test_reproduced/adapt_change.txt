@@ -1,0 +1,8 @@
+3 images with the biggest improvement in relative error (image: change of RE):
+5365.jpg: 0.21677652994791696
+6266.jpg: 0.17737265194163587
+2910.jpg: 0.1577649797712053
+3 images with the worst improvement in relative error:
+4112.jpg: -0.21015973524613812
+7639.jpg: -0.31828651428222665
+7171.jpg: -1.7557654747596132
