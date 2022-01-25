@@ -1,0 +1,24 @@
+Image: 5365.jpg
+Ground truth: 9
+Predicted: 75.69107055664062
+Predicted with adaptation: 73.74008178710938
+Image: 6266.jpg
+Ground truth: 17
+Predicted: 65.63740539550781
+Predicted with adaptation: 62.6220703125
+Image: 2910.jpg
+Ground truth: 14
+Predicted: 30.559207916259766
+Predicted with adaptation: 28.35049819946289
+Image: 4112.jpg
+Ground truth: 11
+Predicted: 11.797656059265137
+Predicted with adaptation: 14.109413146972656
+Image: 7639.jpg
+Ground truth: 20
+Predicted: 57.54148483276367
+Predicted with adaptation: 63.9072151184082
+Image: 7171.jpg
+Ground truth: 13
+Predicted: 647.6767578125
+Predicted with adaptation: 670.501708984375
