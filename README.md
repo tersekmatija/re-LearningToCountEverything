@@ -6,3 +6,12 @@ The structure of the repository is as follows: in folder **src** there is author
 Please put instances_val_2014.json and instances_val_2017.json which can be found on [COCO data set website](https://cocodataset.org/#home) into **src/notebooks/misc** directory (only required for running COCO related notebook).
 
 For this challenge we were running test_extended.py and notebooks. We also changed utils.py.
+
+The majority of our experiments can be ran using script test_extended.py, which is only an extension of script test.py, produced by the authors of original paper. The instructions for running their script are described on their [repository](https://github.com/cvlab-stonybrook/LearningToCountEverything/blob/master/README.md). We added some command line parameters in order to evaluate FamNet in different test scenarios. The added parameteres are:
+- o: the path to the output file, in which the results are written,
+- al: if specified, the absolute loss is used in MinCountLoss instead of squared loss,
+- ne: the number of exemplars that is used (for number of exemplars ablation study), set to -1 by default, meaning that all exemplars are used,
+- c: if specified, FamNet is evaluated on CarPK test set,
+- cc: if specified, FamNet is evaluated on JHU-CROWD++ test set.
+
+To evaluate different values for $ \sigma_G $ in perturbation loss, we ran script choose_sigma.py and to find the instances, where adaptation brings biggest/worst improvements we ran script check_adapt.py. Both of these scripts are ran in the same way as original test.py and have the same command line parameters (except for parameter -a, which is removed in both scripts and -sp, which is removed in choose_sigma.py).
